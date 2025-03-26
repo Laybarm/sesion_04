@@ -126,3 +126,35 @@ def get_items(skip: int = 0, limit: int = 10):
         query = select(items).offset(skip).limit(limit)
         results = session.execute(query).fetchall()
         return [result._mapping for result in results]
+
+
+
+@app.post("/predict")
+async def predict_house(file: UploadFile = File(...)):
+    classifier = load("linear_regression.joblib")
+  
+    features_df = pd.read_csv("selected_features.csv")
+    features = features_df['0'].to_list()
+
+    contents = await file.read()
+
+    df = pd.read_csv(StringIO(contents.decode('utf-8')))
+    df = df[features]
+
+    predictions = classifier.predict(df)
+
+
+    lima_tz = pytz.timezone('America/Lima')
+    now = datetime.now(lima_tz)
+
+    predictions_df = pd.Dataframe({
+        'file_name': file.filename,
+        'prediction': predictions
+        'create_at': now
+    })
+
+    predictions_df.to_sql("predictions", con=engine, if_exists = 'append', index = False)
+
+    return {
+        "predictions": predictions.tolist()
+    }
