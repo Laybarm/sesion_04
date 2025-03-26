@@ -7,7 +7,6 @@ scikit-learn
 pandas
 pymysql
 python-multipart
-pyngrok
 
 PyJWT
 passlib
