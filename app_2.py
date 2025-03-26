@@ -1,26 +1,24 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, status, Depends
+from fastapi import FastAPI, HTTPException, status, Depends
 from pydantic import BaseModel
-from io import StringIO
-import pandas as pd 
-from joblib import load
-
 from sqlalchemy import create_engine, MetaData, Table
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.sql import select
 
+from fastapi import FastAPI, File, UploadFile
+from io import StringIO
+import pandas as pd
+from joblib import load
 
 from datetime import datetime
 import pytz
 
-
+# Configurar la base de datos
 SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root:sMerICALAiSHzePenhqUmHDSlImhBXpw@shortline.proxy.rlwy.net:28541/railway"
-
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 metadata = MetaData()
 
 
-
-
+ 
 # Cargar la tabla existente
 items = Table("items", metadata, autoload_with=engine)
 
@@ -128,33 +126,32 @@ def get_items(skip: int = 0, limit: int = 10):
         return [result._mapping for result in results]
 
 
-
 @app.post("/predict")
-async def predict_house(file: UploadFile = File(...)):
+async def predict_houseprice(file: UploadFile = File(...), db: Session = Depends(get_db)):
+
     classifier = load("linear_regression.joblib")
-  
-    features_df = pd.read_csv("selected_features.csv")
+    
+    features_df = pd.read_csv('selected_features.csv')
     features = features_df['0'].to_list()
-
+    
     contents = await file.read()
-
     df = pd.read_csv(StringIO(contents.decode('utf-8')))
     df = df[features]
-
+    
     predictions = classifier.predict(df)
-
 
     lima_tz = pytz.timezone('America/Lima')
     now = datetime.now(lima_tz)
-
-    predictions_df = pd.Dataframe({
+    
+    predictions_df = pd.DataFrame({
         'file_name': file.filename,
-        'prediction': predictions
-        'create_at': now
+        'prediction': predictions,
+        'created_at': now
     })
-
-    predictions_df.to_sql("predictions", con=engine, if_exists = 'append', index = False)
+    
+    predictions_df.to_sql('predictions', con=engine, if_exists='append', index=False)
 
     return {
         "predictions": predictions.tolist()
     }
+
